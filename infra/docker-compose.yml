@@ -1,0 +1,45 @@
+services:
+  database:
+    image: postgres:16.6-alpine
+    environment:
+      POSTGRES_DB: faculty_achievement
+      POSTGRES_USER: faculty_achievement
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-faculty_achievement}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faculty_achievement -d faculty_achievement"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: faculty-achievement-backend:local
+    pull_policy: build
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: jdbc:postgresql://database:5432/faculty_achievement
+      DATABASE_USERNAME: faculty_achievement
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-faculty_achievement}
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    image: faculty-achievement-frontend:local
+    pull_policy: build
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"

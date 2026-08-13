@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.achievement.codes.CodeGroupManagementMapper">
+  <resultMap id="codeGroupRow" type="kr.ac.knue.achievement.codes.CodeGroupManagementMapper$CodeGroupRow">
+    <constructor>
+      <arg column="group_id" javaType="String"/>
+      <arg column="group_name" javaType="String"/>
+      <arg column="description" javaType="String"/>
+      <arg column="managing_department" javaType="String"/>
+      <arg column="use_status" javaType="String"/>
+    </constructor>
+  </resultMap>
+
+  <select id="findActiveCodeGroups" resultMap="codeGroupRow">
+    SELECT group_id, group_name, description, managing_department, use_status
+    FROM code_group
+    WHERE use_status = 'ACTIVE'
+    ORDER BY group_id
+  </select>
+
+  <select id="findActiveCodeGroup" resultMap="codeGroupRow">
+    SELECT group_id, group_name, description, managing_department, use_status
+    FROM code_group
+    WHERE group_id = #{groupId} AND use_status = 'ACTIVE'
+  </select>
+
+  <insert id="insertCodeGroup">
+    INSERT INTO code_group (group_id, group_name, description, managing_department, use_status)
+    VALUES (#{groupId}, #{groupName}, #{description}, #{managingDepartment}, 'ACTIVE')
+  </insert>
+
+  <update id="updateCodeGroup">
+    UPDATE code_group
+    SET group_name = #{groupName}, description = #{description}, managing_department = #{managingDepartment},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE group_id = #{groupId} AND use_status = 'ACTIVE'
+  </update>
+</mapper>

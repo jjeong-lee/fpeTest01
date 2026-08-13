@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS ux_user_role_user_role ON user_role(user_id, role_code);

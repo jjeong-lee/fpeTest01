@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.achievement.userroles.UserRoleManagementMapper">
+  <resultMap id="userRoleRow" type="kr.ac.knue.achievement.userroles.UserRoleManagementMapper$UserRoleRow"><constructor><arg column="role_code" javaType="String"/><arg column="assignment_type" javaType="String"/><arg column="effective_start_date" javaType="java.time.LocalDate"/><arg column="effective_end_date" javaType="java.time.LocalDate"/><arg column="approver_user_id" javaType="java.util.UUID"/><arg column="reason" javaType="String"/><arg column="status" javaType="String"/></constructor></resultMap>
+  <select id="findActiveByUserId" resultMap="userRoleRow">SELECT role_code, assignment_type, effective_start_date, effective_end_date, approver_user_id, reason, status FROM user_role WHERE user_id = #{userId} AND status = 'ACTIVE' ORDER BY role_code</select>
+  <select id="findByUserAndRole" resultMap="userRoleRow">SELECT role_code, assignment_type, effective_start_date, effective_end_date, approver_user_id, reason, status FROM user_role WHERE user_id = #{userId} AND role_code = #{roleCode}</select>
+  <select id="countUser" resultType="int">SELECT COUNT(*) FROM user_account WHERE user_id = #{userId}</select>
+  <select id="countRole" resultType="int">SELECT COUNT(*) FROM role WHERE role_code = #{roleCode}</select>
+  <insert id="insert">INSERT INTO user_role (user_role_id, user_id, role_code, assignment_type, effective_start_date, effective_end_date, approver_user_id, reason, status) VALUES (#{userRoleId}, #{userId}, #{roleCode}, #{assignmentType}, #{effectiveStartDate}, #{effectiveEndDate}, #{approverUserId}, #{reason}, 'ACTIVE')</insert>
+  <update id="reactivate">UPDATE user_role SET assignment_type = #{assignmentType}, effective_start_date = #{effectiveStartDate}, effective_end_date = #{effectiveEndDate}, approver_user_id = #{approverUserId}, reason = #{reason}, status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP WHERE user_id = #{userId} AND role_code = #{roleCode}</update>
+  <update id="revoke">UPDATE user_role SET status = 'REVOKED', reason = #{reason}, updated_at = CURRENT_TIMESTAMP WHERE user_id = #{userId} AND role_code = #{roleCode} AND status = 'ACTIVE'</update>
+</mapper>

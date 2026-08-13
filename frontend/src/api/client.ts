@@ -24,13 +24,6 @@ export async function api<T>(
   });
   const body = (await response.json()) as ApiResponse<T> | ApiError;
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      const denied = body as ApiError;
-      throw {
-        ...denied,
-        error: { ...denied.error, code: "MENU_ACCESS_DENIED" },
-      } satisfies ApiError;
-    }
     throw body;
   }
   return body as ApiResponse<T>;

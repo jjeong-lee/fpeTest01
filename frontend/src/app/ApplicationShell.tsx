@@ -39,12 +39,14 @@ const menuGroups = [
 ];
 
 type Props = {
+  onLogout?: () => void;
   session: SessionState;
   initialPath?: string;
   children?: ReactNode;
 };
 
 export function ApplicationShell({
+  onLogout,
   session,
   initialPath = window.location.pathname,
   children,
@@ -93,7 +95,12 @@ export function ApplicationShell({
               </div>
             ))}
           </nav>
-          <span className="account-name">{session.username}</span>
+          <div className="account-actions">
+            <span className="account-name">{session.username}</span>
+            <button className="text-button" onClick={onLogout} type="button">
+              로그아웃
+            </button>
+          </div>
         </div>
       </header>
       <section className="page-canvas">

@@ -5,6 +5,7 @@ import {
   PermissionDenied,
   type SessionState,
 } from "./app/ApplicationShell";
+import { LoginPage } from "./app/LoginPage";
 import { UserManagementPage } from "./features/users/UserManagementPage";
 import { OrganizationManagementPage } from "./features/organizations/OrganizationManagementPage";
 import { RoleManagementPage } from "./features/roles/RoleManagementPage";
@@ -23,6 +24,7 @@ type CurrentUser = {
 type BootstrapState =
   | { state: "loading" }
   | { state: "error" }
+  | { state: "unauthenticated" }
   | { state: "denied" }
   | { state: "ready"; session: SessionState };
 
@@ -33,25 +35,39 @@ export default function App() {
 
   useEffect(() => {
     api<CurrentUser>("/api/auth/me")
-      .then(({ data }) =>
-        setBootstrap({
-          state: "ready",
-          session: {
-            status: "authenticated",
-            username: data.username,
-            allowedMenuPaths: data.allowedMenuPaths,
-          },
-        }),
-      )
+      .then(({ data }) => authenticate(data))
       .catch((error: unknown) => {
         const apiError = error as ApiError;
         setBootstrap(
-          apiError.error?.code === "MENU_ACCESS_DENIED"
-            ? { state: "denied" }
-            : { state: "error" },
+          apiError.error?.code === "UNAUTHENTICATED"
+            ? { state: "unauthenticated" }
+            : apiError.error?.code === "MENU_ACCESS_DENIED"
+              ? { state: "denied" }
+              : { state: "error" },
         );
       });
   }, []);
+
+  function authenticate(user: CurrentUser) {
+    window.history.replaceState({}, "", "/");
+    setBootstrap({
+      state: "ready",
+      session: {
+        status: "authenticated",
+        username: user.username,
+        allowedMenuPaths: user.allowedMenuPaths,
+      },
+    });
+  }
+
+  async function logout() {
+    try {
+      await api<void>("/api/auth/logout", { method: "POST" });
+    } finally {
+      window.history.replaceState({}, "", "/login");
+      setBootstrap({ state: "unauthenticated" });
+    }
+  }
 
   if (bootstrap.state === "loading")
     return (
@@ -65,6 +81,9 @@ export default function App() {
         </div>
       </main>
     );
+
+  if (bootstrap.state === "unauthenticated")
+    return <LoginPage onAuthenticated={authenticate} />;
 
   if (bootstrap.state === "denied")
     return (
@@ -88,7 +107,7 @@ export default function App() {
     );
 
   return (
-    <ApplicationShell session={bootstrap.session}>
+    <ApplicationShell onLogout={logout} session={bootstrap.session}>
       {window.location.pathname === "/system/users" ? (
         <UserManagementPage />
       ) : window.location.pathname === "/system/organizations" ? (

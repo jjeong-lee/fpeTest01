@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.achievement.users.UserManagementMapper">
+  <resultMap id="userRow" type="kr.ac.knue.achievement.users.UserManagementMapper$UserRow">
+    <constructor>
+      <idArg column="user_id" javaType="java.util.UUID"/>
+      <arg column="employee_no" javaType="String"/>
+      <arg column="name" javaType="String"/>
+      <arg column="organization_code" javaType="String"/>
+      <arg column="position" javaType="String"/>
+      <arg column="employment_status" javaType="String"/>
+      <arg column="duty" javaType="String"/>
+      <arg column="retirement_date" javaType="java.time.LocalDate"/>
+      <arg column="last_synced_at" javaType="java.time.LocalDateTime"/>
+      <arg column="system_enabled" javaType="boolean"/>
+      <arg column="role_codes" javaType="String"/>
+    </constructor>
+  </resultMap>
+
+  <sql id="userFilters">
+    <if test="criteria.employeeNo != null and criteria.employeeNo != ''">AND p.employee_no ILIKE CONCAT('%', #{criteria.employeeNo}, '%')</if>
+    <if test="criteria.name != null and criteria.name != ''">AND p.name ILIKE CONCAT('%', #{criteria.name}, '%')</if>
+    <if test="criteria.organizationCode != null and criteria.organizationCode != ''">AND p.organization_code = #{criteria.organizationCode}</if>
+    <if test="criteria.position != null and criteria.position != ''">AND p.position = #{criteria.position}</if>
+    <if test="criteria.employmentStatus != null and criteria.employmentStatus != ''">AND p.employment_status = #{criteria.employmentStatus}</if>
+    <if test="criteria.roleCode != null and criteria.roleCode != ''">AND EXISTS (SELECT 1 FROM user_role fur WHERE fur.user_id = u.user_id AND fur.role_code = #{criteria.roleCode} AND fur.status = 'ACTIVE')</if>
+    <if test="criteria.systemEnabled != null">AND u.system_enabled = #{criteria.systemEnabled}</if>
+  </sql>
+
+  <select id="search" resultMap="userRow">
+    SELECT u.user_id, u.employee_no, p.name, p.organization_code, p.position, p.employment_status, p.duty,
+      p.retirement_date, p.last_synced_at, u.system_enabled,
+      COALESCE(string_agg(ur.role_code, ',' ORDER BY ur.role_code) FILTER (WHERE ur.status = 'ACTIVE'), '') AS role_codes
+    FROM user_account u JOIN korus_personnel_snapshot p ON p.employee_no = u.employee_no
+    LEFT JOIN user_role ur ON ur.user_id = u.user_id
+    WHERE 1 = 1 <include refid="userFilters"/>
+    GROUP BY u.user_id, p.employee_no, p.name, p.organization_code, p.position, p.employment_status, p.duty, p.retirement_date, p.last_synced_at, u.system_enabled
+    ORDER BY p.employee_no
+    LIMIT #{criteria.size} OFFSET #{criteria.page} * #{criteria.size}
+  </select>
+
+  <select id="count" resultType="long">
+    SELECT COUNT(*) FROM user_account u JOIN korus_personnel_snapshot p ON p.employee_no = u.employee_no
+    WHERE 1 = 1 <include refid="userFilters"/>
+  </select>
+
+  <select id="findById" resultMap="userRow">
+    SELECT u.user_id, u.employee_no, p.name, p.organization_code, p.position, p.employment_status, p.duty,
+      p.retirement_date, p.last_synced_at, u.system_enabled,
+      COALESCE(string_agg(ur.role_code, ',' ORDER BY ur.role_code) FILTER (WHERE ur.status = 'ACTIVE'), '') AS role_codes
+    FROM user_account u JOIN korus_personnel_snapshot p ON p.employee_no = u.employee_no
+    LEFT JOIN user_role ur ON ur.user_id = u.user_id WHERE u.user_id = #{userId}
+    GROUP BY u.user_id, p.employee_no, p.name, p.organization_code, p.position, p.employment_status, p.duty, p.retirement_date, p.last_synced_at, u.system_enabled
+  </select>
+
+  <update id="updateSystemEnabled">UPDATE user_account SET system_enabled = #{systemEnabled}, updated_at = CURRENT_TIMESTAMP WHERE user_id = #{userId}</update>
+  <update id="revokeActiveRoles">UPDATE user_role SET status = 'REVOKED', updated_at = CURRENT_TIMESTAMP WHERE user_id = #{userId} AND status = 'ACTIVE'</update>
+  <select id="countActiveRoles" resultType="int">
+    SELECT COUNT(*) FROM role WHERE use_status = 'ACTIVE' AND role_code IN
+    <foreach collection="roleCodes" item="roleCode" open="(" separator="," close=")">#{roleCode}</foreach>
+  </select>
+  <insert id="insertRole">INSERT INTO user_role (user_role_id, user_id, role_code, assignment_type, approver_user_id, reason, status) VALUES (#{userRoleId}, #{userId}, #{roleCode}, 'MANUAL', #{actorUserId}, #{reason}, 'ACTIVE')</insert>
+</mapper>

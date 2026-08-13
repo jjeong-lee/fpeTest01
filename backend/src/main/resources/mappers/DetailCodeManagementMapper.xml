@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.achievement.codes.DetailCodeManagementMapper">
+  <resultMap id="detailCodeRow" type="kr.ac.knue.achievement.codes.DetailCodeManagementMapper$DetailCodeRow">
+    <constructor>
+      <arg column="detail_code_id" javaType="java.util.UUID"/>
+      <arg column="group_id" javaType="String"/>
+      <arg column="code_value" javaType="String"/>
+      <arg column="code_name" javaType="String"/>
+      <arg column="parent_detail_code_id" javaType="java.util.UUID"/>
+      <arg column="display_order" javaType="int"/>
+      <arg column="additional_attributes" javaType="String"/>
+      <arg column="use_status" javaType="String"/>
+    </constructor>
+  </resultMap>
+
+  <select id="findActiveDetailCodesByGroup" resultMap="detailCodeRow">
+    SELECT detail_code_id, group_id, code_value, code_name, parent_detail_code_id, display_order,
+           additional_attributes::text AS additional_attributes, use_status
+    FROM detail_code
+    WHERE group_id = #{groupId} AND use_status = 'ACTIVE'
+    ORDER BY display_order, code_value
+  </select>
+
+  <select id="findActiveDetailCode" resultMap="detailCodeRow">
+    SELECT detail_code_id, group_id, code_value, code_name, parent_detail_code_id, display_order,
+           additional_attributes::text AS additional_attributes, use_status
+    FROM detail_code
+    WHERE detail_code_id = #{detailCodeId} AND use_status = 'ACTIVE'
+  </select>
+
+  <select id="findActiveDetailCodeByValue" resultMap="detailCodeRow">
+    SELECT detail_code_id, group_id, code_value, code_name, parent_detail_code_id, display_order,
+           additional_attributes::text AS additional_attributes, use_status
+    FROM detail_code
+    WHERE group_id = #{groupId} AND code_value = #{codeValue} AND use_status = 'ACTIVE'
+  </select>
+
+  <select id="existsActiveCodeGroup" resultType="boolean">
+    SELECT EXISTS(SELECT 1 FROM code_group WHERE group_id = #{groupId} AND use_status = 'ACTIVE')
+  </select>
+
+  <insert id="insertDetailCode">
+    INSERT INTO detail_code (detail_code_id, group_id, code_value, code_name, parent_detail_code_id, display_order, additional_attributes, use_status)
+    VALUES (#{detailCodeId}, #{groupId}, #{codeValue}, #{codeName}, #{parentDetailCodeId}, #{displayOrder},
+            CAST(#{additionalAttributes} AS jsonb), 'ACTIVE')
+  </insert>
+
+  <update id="updateDetailCode">
+    UPDATE detail_code
+    SET group_id = #{groupId}, code_value = #{codeValue}, code_name = #{codeName},
+        parent_detail_code_id = #{parentDetailCodeId}, display_order = #{displayOrder},
+        additional_attributes = CAST(#{additionalAttributes} AS jsonb), updated_at = CURRENT_TIMESTAMP
+    WHERE detail_code_id = #{detailCodeId} AND use_status = 'ACTIVE'
+  </update>
+</mapper>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.achievement.menus.MenuStructureManagementMapper">
+  <resultMap id="menuRow" type="kr.ac.knue.achievement.menus.MenuStructureManagementMapper$MenuRow">
+    <constructor>
+      <arg column="menu_id" javaType="java.util.UUID"/>
+      <arg column="parent_menu_id" javaType="java.util.UUID"/>
+      <arg column="menu_name" javaType="String"/>
+      <arg column="display_order" javaType="java.lang.Integer"/>
+      <arg column="use_status" javaType="String"/>
+    </constructor>
+  </resultMap>
+
+  <select id="findActiveMenus" resultMap="menuRow">
+    SELECT menu_id, parent_menu_id, menu_name, display_order, use_status
+    FROM menu
+    WHERE use_status = 'ACTIVE'
+    ORDER BY parent_menu_id NULLS FIRST, display_order, menu_name
+  </select>
+
+  <select id="findActiveMenu" resultMap="menuRow">
+    SELECT menu_id, parent_menu_id, menu_name, display_order, use_status
+    FROM menu
+    WHERE menu_id = #{menuId} AND use_status = 'ACTIVE'
+  </select>
+
+  <update id="updateParent">
+    UPDATE menu SET parent_menu_id = #{parentMenuId}, updated_at = CURRENT_TIMESTAMP
+    WHERE menu_id = #{menuId} AND use_status = 'ACTIVE'
+  </update>
+
+  <update id="updateDisplayOrder">
+    UPDATE menu SET display_order = #{displayOrder}, updated_at = CURRENT_TIMESTAMP
+    WHERE menu_id = #{menuId} AND use_status = 'ACTIVE'
+  </update>
+</mapper>

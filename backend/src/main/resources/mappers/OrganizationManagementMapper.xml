@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.achievement.organizations.OrganizationManagementMapper">
+  <resultMap id="organizationRow" type="kr.ac.knue.achievement.organizations.OrganizationManagementMapper$OrganizationRow">
+    <constructor>
+      <arg column="organization_code" javaType="String"/>
+      <arg column="organization_name" javaType="String"/>
+      <arg column="organization_type" javaType="String"/>
+      <arg column="use_status" javaType="String"/>
+      <arg column="current_parent_organization_code" javaType="String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="relationRow" type="kr.ac.knue.achievement.organizations.OrganizationManagementMapper$RelationRow">
+    <constructor>
+      <idArg column="organization_relation_history_id" javaType="java.util.UUID"/>
+      <arg column="organization_code" javaType="String"/>
+      <arg column="parent_organization_code" javaType="String"/>
+      <arg column="effective_start_date" javaType="java.time.LocalDate"/>
+      <arg column="effective_end_date" javaType="java.time.LocalDate"/>
+      <arg column="status" javaType="String"/>
+    </constructor>
+  </resultMap>
+
+  <select id="search" resultMap="organizationRow">
+    SELECT o.organization_code, o.organization_name, o.organization_type, o.use_status,
+      current_relation.parent_organization_code AS current_parent_organization_code
+    FROM organization o
+    LEFT JOIN LATERAL (
+      SELECT parent_organization_code
+      FROM organization_relation_history
+      WHERE organization_code = o.organization_code AND status = 'ACTIVE'
+        AND effective_start_date &lt;= CURRENT_DATE
+        AND (effective_end_date IS NULL OR effective_end_date &gt;= CURRENT_DATE)
+      ORDER BY effective_start_date DESC
+      LIMIT 1
+    ) current_relation ON TRUE
+    WHERE o.use_status = 'ACTIVE'
+    <if test="organizationCode != null and organizationCode != ''">
+      AND o.organization_code ILIKE CONCAT('%', #{organizationCode}, '%')
+    </if>
+    ORDER BY o.organization_code
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <select id="count" resultType="long">
+    SELECT COUNT(*) FROM organization o
+    WHERE o.use_status = 'ACTIVE'
+    <if test="organizationCode != null and organizationCode != ''">
+      AND o.organization_code ILIKE CONCAT('%', #{organizationCode}, '%')
+    </if>
+  </select>
+
+  <select id="findByCode" resultMap="organizationRow">
+    SELECT o.organization_code, o.organization_name, o.organization_type, o.use_status,
+      NULL AS current_parent_organization_code
+    FROM organization o WHERE o.organization_code = #{organizationCode}
+  </select>
+
+  <select id="findEffectiveParent" resultMap="organizationRow">
+    SELECT parent.organization_code, parent.organization_name, parent.organization_type, parent.use_status,
+      NULL AS current_parent_organization_code
+    FROM organization_relation_history relation
+    JOIN organization parent ON parent.organization_code = relation.parent_organization_code
+    WHERE relation.organization_code = #{organizationCode} AND relation.status = 'ACTIVE'
+      AND relation.effective_start_date &lt;= #{onDate}
+      AND (relation.effective_end_date IS NULL OR relation.effective_end_date &gt;= #{onDate})
+    ORDER BY relation.effective_start_date DESC LIMIT 1
+  </select>
+
+  <select id="findEffectiveChildren" resultMap="organizationRow">
+    SELECT child.organization_code, child.organization_name, child.organization_type, child.use_status,
+      #{parentOrganizationCode} AS current_parent_organization_code
+    FROM organization_relation_history relation
+    JOIN organization child ON child.organization_code = relation.organization_code
+    WHERE relation.parent_organization_code = #{parentOrganizationCode} AND relation.status = 'ACTIVE'
+      AND relation.effective_start_date &lt;= #{onDate}
+      AND (relation.effective_end_date IS NULL OR relation.effective_end_date &gt;= #{onDate})
+    ORDER BY child.organization_code
+  </select>
+
+  <select id="findHistory" resultMap="relationRow">
+    SELECT organization_relation_history_id, organization_code, parent_organization_code, effective_start_date,
+      effective_end_date, status
+    FROM organization_relation_history WHERE organization_code = #{organizationCode}
+    ORDER BY effective_start_date
+  </select>
+
+  <select id="findActiveRelation" resultMap="relationRow">
+    SELECT organization_relation_history_id, organization_code, parent_organization_code, effective_start_date,
+      effective_end_date, status
+    FROM organization_relation_history
+    WHERE organization_code = #{organizationCode} AND status = 'ACTIVE'
+      AND effective_start_date &lt;= #{onDate}
+      AND (effective_end_date IS NULL OR effective_end_date &gt;= #{onDate})
+    ORDER BY effective_start_date DESC LIMIT 1
+  </select>
+
+  <update id="closeRelation">
+    UPDATE organization_relation_history SET effective_end_date = #{effectiveEndDate}, updated_at = CURRENT_TIMESTAMP
+    WHERE organization_relation_history_id = #{relationId}
+  </update>
+
+  <insert id="insertRelation">
+    INSERT INTO organization_relation_history (organization_relation_history_id, organization_code,
+      parent_organization_code, effective_start_date, effective_end_date, status)
+    VALUES (#{relationId}, #{organizationCode}, #{parentOrganizationCode}, #{effectiveStartDate},
+      #{effectiveEndDate}, 'ACTIVE')
+  </insert>
+</mapper>

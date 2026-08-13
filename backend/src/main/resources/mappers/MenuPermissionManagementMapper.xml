@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.achievement.menus.MenuPermissionManagementMapper">
+  <resultMap id="menuPermissionRow" type="kr.ac.knue.achievement.menus.MenuPermissionManagementMapper$MenuPermissionRow">
+    <constructor>
+      <arg column="subject_type" javaType="String"/>
+      <arg column="subject_id" javaType="String"/>
+      <arg column="menu_id" javaType="java.util.UUID"/>
+      <arg column="top_menu_name" javaType="String"/>
+      <arg column="middle_menu_name" javaType="String"/>
+      <arg column="menu_name" javaType="String"/>
+      <arg column="access_decision" javaType="String"/>
+    </constructor>
+  </resultMap>
+
+  <sql id="subjectPredicate">
+    <if test="subjectType != null">AND permission.subject_type = #{subjectType}</if>
+    <if test="subjectId != null">AND permission.subject_id = #{subjectId}</if>
+  </sql>
+
+  <select id="search" resultMap="menuPermissionRow">
+    SELECT permission.subject_type, permission.subject_id, permission.menu_id,
+           top_menu.menu_name AS top_menu_name, middle_menu.menu_name AS middle_menu_name,
+           menu.menu_name, permission.access_decision
+    FROM menu_permission permission
+    JOIN menu ON menu.menu_id = permission.menu_id
+    LEFT JOIN menu middle_menu ON middle_menu.menu_id = menu.parent_menu_id
+    LEFT JOIN menu top_menu ON top_menu.menu_id = middle_menu.parent_menu_id
+    WHERE permission.use_status = 'ACTIVE'
+    <include refid="subjectPredicate"/>
+    ORDER BY menu.display_order
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <select id="count" resultType="long">
+    SELECT COUNT(*) FROM menu_permission permission
+    WHERE permission.use_status = 'ACTIVE'
+    <include refid="subjectPredicate"/>
+  </select>
+
+  <select id="findByNaturalKey" resultMap="menuPermissionRow">
+    SELECT permission.subject_type, permission.subject_id, permission.menu_id,
+           top_menu.menu_name AS top_menu_name, middle_menu.menu_name AS middle_menu_name,
+           menu.menu_name, permission.access_decision
+    FROM menu_permission permission
+    JOIN menu ON menu.menu_id = permission.menu_id
+    LEFT JOIN menu middle_menu ON middle_menu.menu_id = menu.parent_menu_id
+    LEFT JOIN menu top_menu ON top_menu.menu_id = middle_menu.parent_menu_id
+    WHERE permission.subject_type = #{subjectType} AND permission.subject_id = #{subjectId}
+      AND permission.menu_id = #{menuId} AND permission.use_status = 'ACTIVE'
+  </select>
+
+  <select id="menuExists" resultType="boolean">
+    SELECT EXISTS (SELECT 1 FROM menu WHERE menu_id = #{menuId} AND use_status = 'ACTIVE')
+  </select>
+
+  <insert id="insert">
+    INSERT INTO menu_permission (menu_permission_id, subject_type, subject_id, menu_id, access_decision, use_status)
+    VALUES (#{permissionId}, #{subjectType}, #{subjectId}, #{menuId}, #{accessDecision}, 'ACTIVE')
+  </insert>
+
+  <update id="update">
+    UPDATE menu_permission SET access_decision = #{accessDecision}, updated_at = CURRENT_TIMESTAMP
+    WHERE subject_type = #{subjectType} AND subject_id = #{subjectId} AND menu_id = #{menuId}
+  </update>
+</mapper>

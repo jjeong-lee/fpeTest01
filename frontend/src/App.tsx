@@ -49,7 +49,15 @@ export default function App() {
   }, []);
 
   function authenticate(user: CurrentUser) {
-    window.history.replaceState({}, "", "/");
+    const isEntryRoute =
+      window.location.pathname === "/" || window.location.pathname === "/login";
+    window.history.replaceState(
+      {},
+      "",
+      isEntryRoute
+        ? (user.allowedMenuPaths[0] ?? "/")
+        : window.location.pathname,
+    );
     setBootstrap({
       state: "ready",
       session: {

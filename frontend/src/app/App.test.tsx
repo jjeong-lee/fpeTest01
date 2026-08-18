@@ -92,12 +92,77 @@ describe("ApplicationShell", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "로그인" }));
 
-    expect(await screen.findByRole("link", { name: "사용자 관리" })).toBeTruthy();
+    expect(
+      await screen.findByRole("link", { name: "사용자 관리" }),
+    ).toBeTruthy();
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       "/api/auth/login",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("opens the first permitted management screen after login", async () => {
+    window.history.replaceState({}, "", "/login");
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            success: false,
+            error: {
+              code: "UNAUTHENTICATED",
+              message: "인증이 필요합니다.",
+              fieldErrors: [],
+            },
+            meta: {},
+          },
+          401,
+        ),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          success: true,
+          data: {
+            username: "admin",
+            roles: ["R09"],
+            allowedMenuPaths: ["/system/users"],
+          },
+          meta: {},
+        }),
+      );
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "로그인" });
+    fireEvent.change(screen.getByLabelText("사용자명"), {
+      target: { value: "admin" },
+    });
+    fireEvent.change(screen.getByLabelText("비밀번호"), {
+      target: { value: "admin" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
+
+    await screen.findByRole("link", { name: "사용자 관리" });
+    expect(window.location.pathname).toBe("/system/users");
+  });
+
+  it("keeps an allowed direct management route for an active session", async () => {
+    window.history.replaceState({}, "", "/system/roles");
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        success: true,
+        data: {
+          username: "admin",
+          roles: ["R09"],
+          allowedMenuPaths: ["/system/users", "/system/roles"],
+        },
+        meta: {},
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByRole("link", { name: "역할 관리" });
+    expect(window.location.pathname).toBe("/system/roles");
   });
 });
 
